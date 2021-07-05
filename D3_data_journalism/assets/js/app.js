@@ -1,4 +1,4 @@
-//============Set up chart=====================
+// Set chart area
 var svgWidth = 960;
 var svgHeight = 500;
 
@@ -12,9 +12,8 @@ var margin = {
 var width = svgWidth - margin.left - margin.right;
 var height = svgHeight - margin.top - margin.bottom;
 
-// ====Create an SVG wrapper,append an SVG group that will hold chart and set margins=====
-var svg = d3
-  .select("#scatter")
+// Create an SVG wrapper, append an SVG group that will hold our chart, and shift the latter by left and top margins.
+var svg = d3.select("#scatter")
   .append("svg")
   .attr("width", svgWidth)
   .attr("height", svgHeight);
@@ -22,55 +21,83 @@ var svg = d3
 var chartGroup = svg.append("g")
   .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-// ==========Import and format the data to numerical values =======================
+// Import Data
 d3.csv("assets/data/data.csv").then(function(CensusData) {
+  // Step 1: Parse Data/Cast as numbers
+    // ==============================
   CensusData.forEach(function(data) {
     data.age = +data.age;
     data.smokes = +data.smokes;
-    // console.log(data);
   });
-
-  // ==============Create Scales====================
-  const xScale = d3.scaleLinear()
+   // Step 2: Create scale functions
+    // ==============================
+  var xLinearScale = d3.scaleLinear()
     .domain(d3.extent(CensusData, d => d.age))
     .range([0, width])
-    .nice(); //makes the intersection of axes crisp
+    .nice();
 
-  const yScale = d3.scaleLinear()
-    .domain([6,d3.max(CensusData, d => d.smokes)])
+  var yLinearScale = d3.scaleLinear()
+    .domain([6, d3.max(CensusData, d => d.smokes)])
     .range([height, 0])
     .nice();
   
-  // =============Create Axes=========================
-  const xAxis = d3.axisBottom(xScale);
-  const yAxis = d3.axisLeft(yScale);
+  // Step 3: Create axis functions
+    // ==============================
+  var xAxis = d3.axisBottom(xLinearScale);
+  var yAxis = d3.axisLeft(yLinearScale);
 
 
-// ============Append axes to the chartGroup==========
+// Step 4: Append Axes to the chart
+    // ==============================
   chartGroup.append("g").attr("transform", `translate(0, ${height})`).call(xAxis);
   chartGroup.append("g").call(yAxis);
 
-//============Generate scatter plot=========
+// Step 5: Create scatter plot
+    // ==============================
 chartGroup.selectAll("circle")
 .data(CensusData)
 .enter()
 .append("circle")
-.attr("cx", d=>xScale(d.age))
-.attr("cy", d=>yScale(d.smokes))
+.attr("cx", d=>xLinearScale(d.age))
+.attr("cy", d=>yLinearScale(d.smokes))
 .attr("r", "10")
 .attr("stroke-width", "1")
 .classed("stateCircle", true)
-.attr("opacity", 0.75);
+.attr("opacity", 0.8);
 
-//============add texts to each datapoint=========
+// Step 6: Initialize tool tip
+    // ==============================
+    var toolTip = d3.tip()
+      .attr("class", "tooltip")
+      .offset([80, -60])
+      .html(function(d) {
+        return (`${d.state}<br>State: ${d.age}<br>age: ${d.smokes}`);
+      });
+
+    // Step 7: Create tooltip in the chart
+    // ==============================
+    chartGroup.call(toolTip);
+
+    // Step 8: Create event listeners to display and hide the tooltip
+    // ==============================
+    circlesGroup.on("click", function(data) {
+      toolTip.show(data, this);
+    })
+      // onmouseout event
+      .on("mouseout", function(data, index) {
+        toolTip.hide(data);
+      });
+
+
+// Add texts to each point
 chartGroup.append("g")
   .selectAll('text')
   .data(CensusData)
   .enter()
   .append("text")
   .text(d=>d.abbr)
-  .attr("x",d=>xScale(d.age))
-  .attr("y",d=>yScale(d.smokes))
+  .attr("x",d=>xLinearScale(d.age))
+  .attr("y",d=>yLinearScale(d.smokes))
   .classed(".stateText", true)
   .attr("font-family", "sans-serif")
   .attr("text-anchor", "middle")
@@ -79,7 +106,7 @@ chartGroup.append("g")
   .style("font-weight", "bold")
   .attr("alignment-baseline", "central");
   
-  //============add axes titles=========
+  // Create axes labels
   chartGroup.append("text")
         .attr("transform", `translate(${width / 2}, ${height + margin.top + 13})`)
         .attr("text-anchor", "middle")
@@ -97,6 +124,7 @@ chartGroup.append("g")
         .style("font-weight", "bold")
         .attr("transform", "rotate(-90)")
         .text("Smokers (%)");
+
 }).catch(function(error) {
   console.log(error);
 });
